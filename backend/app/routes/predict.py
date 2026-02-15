@@ -1,11 +1,37 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from app.services.model_services import predict_by_city
-from app.services.agent_services import generate_insight
 import httpx
 from app.db.repositories.city_repository import CityRepository
-
+from app.services.model_services import predict_by_city
+from app.utils.mongo_serializer import serialize_mongo
+import traceback
+from app.db.database import db
+from app.db.database import db
 router = APIRouter()
+
+@router.get("/predictions")
+def fetch_predictions():
+    return CityRepository.get_all_predictions()
+
+
+@router.get("/stats")
+def get_stats():
+    collection = db["predictions"]
+
+    total = collection.count_documents({})
+
+    return {
+        "total_predictions": total
+    }
+
+@router.post("/city")
+def get_city(data: dict):
+    city = data.get("city", "Unknown")
+
+    return {
+        "city": city,
+        "status": "received"
+    }
 
 class CityRequest(BaseModel):
     city: str
@@ -14,28 +40,26 @@ class CityRequest(BaseModel):
 @router.post("/predict-aqi-impact")
 async def predict(request: CityRequest):
 
-    # Normalize input
     city = request.city.strip().title()
+    print("\n==== REQUEST START ====")
+    print("City received:", city)
 
-    if not city:
-        raise HTTPException(status_code=400, detail="City is required")
-
-    # Call remote model service
     try:
+        print("➡ Calling model...")
         model_response = await predict_by_city(city)
-    except httpx.RequestError:
-        raise HTTPException(status_code=503, detail="Model service unavailable")
-    except httpx.HTTPStatusError:
-        raise HTTPException(status_code=500, detail="Model returned an error")
+        print("✅ Model response received:", model_response)
 
-    # Extract prediction from model response
-    prediction = model_response.get("predicted_aqi_change")
-    CityRepository.save_prediction(model_response)
+        print("➡ Saving to MongoDB...")
+        saved_doc = CityRepository.save_prediction(model_response)
+        print("✅ Saved successfully")
 
-    return model_response
+        return serialize_mongo(saved_doc)
 
-    if prediction is None:
-        raise HTTPException(status_code=500, detail="Invalid response from model")
+    except Exception as e:
+        print("❌ ERROR OCCURRED:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Prediction failed")
+
 
     # Generate insights using agent
     insight = generate_insight(

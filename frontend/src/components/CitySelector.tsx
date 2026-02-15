@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 
-const API_URL = "http://localhost:8000/city";
+const API_URL =
+  `${process.env.NEXT_PUBLIC_API_URL}/predict-aqi-impact`;
 
 const CITIES = [
   "Mumbai",
@@ -28,37 +29,60 @@ export function CitySelector() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const sendCity = useCallback(async (city: string) => {
+  // ===============================
+  // SEND CITY → GENERATE PREDICTION
+  // ===============================
+  const generatePrediction = useCallback(async (city: string) => {
     if (!city.trim()) return;
+
     setIsLoading(true);
     setError(null);
     setMessage(null);
+
     try {
       const response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ city: city.trim() }),
       });
+
       const data = await response.json();
+
       if (!response.ok) {
-        const detail = (data as { detail?: string }).detail ?? "Failed to save city";
+        const detail =
+          (data as { detail?: string }).detail ??
+          "Prediction failed";
         throw new Error(detail);
       }
-      setMessage((data as { message?: string }).message ?? "City saved");
+
+      console.log("Prediction:", data);
+
+      setMessage(`Prediction generated for ${city}`);
+
+      // refresh dashboard data
+      window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save city");
+      setError(
+        err instanceof Error ? err.message : "Prediction failed"
+      );
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // ===============================
+  // HANDLE SELECT CHANGE
+  // ===============================
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     setSelectedCity(value);
     setMessage(null);
     setError(null);
+
     if (value) {
-      sendCity(value);
+      generatePrediction(value);
     }
   };
 
@@ -73,15 +97,16 @@ export function CitySelector() {
             Select City
           </p>
           <p className="mt-1 text-xs text-slate-300">
-            Choose a city. Your selection is sent to the backend and saved in
-            MongoDB.
+            Choose a city to generate an AI-powered AQI prediction.
           </p>
         </div>
-        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium text-emerald-200 ring-1 ring-emerald-400/40">
-          Saved in backend
+
+        <span className="rounded-full bg-sky-500/10 px-3 py-1 text-[11px] font-medium text-sky-200 ring-1 ring-sky-400/40">
+          AI Prediction
         </span>
       </div>
 
+      {/* SELECT */}
       <div className="space-y-2">
         <label
           htmlFor="city-select"
@@ -89,12 +114,13 @@ export function CitySelector() {
         >
           City
         </label>
+
         <select
           id="city-select"
           value={selectedCity}
           onChange={handleChange}
           disabled={isLoading}
-          className="h-10 w-full rounded-lg border border-slate-700/70 bg-slate-900/70 px-3 text-xs text-slate-50 outline-none ring-0 transition placeholder:text-slate-500 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-10 w-full rounded-lg border border-slate-700/70 bg-slate-900/70 px-3 text-xs text-slate-50 outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="">Choose a city...</option>
           {CITIES.map((city) => (
@@ -105,22 +131,22 @@ export function CitySelector() {
         </select>
       </div>
 
+      {/* LOADING */}
       {isLoading && (
         <p className="flex items-center gap-2 text-[11px] text-slate-400">
           <span className="h-3 w-3 animate-spin rounded-full border-[2px] border-slate-500 border-t-transparent" />
-          Saving...
+          Generating prediction...
         </p>
       )}
 
+      {/* SUCCESS */}
       {message && (
         <div className="rounded-xl bg-emerald-950/40 p-3 text-[11px] text-emerald-200 ring-1 ring-emerald-400/40">
           ✓ {message}
-          {selectedCity && (
-            <span className="ml-1 font-medium">— {selectedCity}</span>
-          )}
         </div>
       )}
 
+      {/* ERROR */}
       {error && (
         <div className="rounded-xl bg-amber-950/40 p-3 text-[11px] text-amber-200 ring-1 ring-amber-400/40">
           <p className="font-medium">Error:</p>

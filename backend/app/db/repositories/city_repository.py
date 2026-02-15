@@ -1,4 +1,9 @@
 from datetime import datetime
+from app.db.database import db
+from app.utils.mongo_serializer import serialize_mongo   # ✅ add this import
+
+collection = db["predictions"]
+
 class CityRepository:
 
     @staticmethod
@@ -24,11 +29,23 @@ class CityRepository:
             {"city": city},
             {"$set": update_data}
         )
+
     @staticmethod
     def save_prediction(data: dict):
-        from app.db.database import db
-        collection = db["predictions"]
-
         data["created_at"] = datetime.utcnow()
 
-        return collection.insert_one(data)
+        result = collection.insert_one(data)
+
+        saved_doc = collection.find_one({"_id": result.inserted_id})
+        return saved_doc
+
+    # ✅ -------- ADD STEP 1 HERE --------
+    @staticmethod
+    def get_all_predictions():
+        predictions = collection.find().sort("created_at", -1)
+
+        result = []
+        for doc in predictions:
+            result.append(serialize_mongo(doc))
+
+        return result

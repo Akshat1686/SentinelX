@@ -5,6 +5,9 @@ type AQICardProps = {
   tone?: "default" | "success" | "warning";
 };
 
+/* =====================================================
+   STYLE THEMES
+===================================================== */
 const toneStyles: Record<
   NonNullable<AQICardProps["tone"]>,
   { ring: string; accent: string; subtitle: string }
@@ -26,6 +29,18 @@ const toneStyles: Record<
   },
 };
 
+/* =====================================================
+   AQI → TONE HELPER (NEW)
+===================================================== */
+export function getAQITone(aqi: number): AQICardProps["tone"] {
+  if (aqi <= 80) return "success";   // good/moderate
+  if (aqi <= 150) return "default";  // moderate
+  return "warning";                  // unhealthy
+}
+
+/* =====================================================
+   COMPONENT
+===================================================== */
 export function AQICard({
   title,
   value,
@@ -38,10 +53,17 @@ export function AQICard({
     <div
       className={`flex flex-col rounded-2xl bg-slate-950/60 p-4 text-xs shadow-lg shadow-slate-950/70 ring-1 ${styles.ring}`}
     >
-      <span className="text-[11px] font-medium text-slate-400">{title}</span>
+      {/* TITLE */}
+      <span className="text-[11px] font-medium text-slate-400">
+        {title}
+      </span>
+
+      {/* VALUE */}
       <span className={`mt-2 text-2xl font-semibold ${styles.accent}`}>
         {value}
       </span>
+
+      {/* SUBTITLE */}
       {subtitle && (
         <span className={`mt-1 text-[11px] leading-snug ${styles.subtitle}`}>
           {subtitle}
@@ -50,4 +72,3 @@ export function AQICard({
     </div>
   );
 }
-
